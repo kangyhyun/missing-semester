@@ -150,3 +150,124 @@ area = PI*r*r；
 
 `gcc -E main.c` 默认不输出 `.i `文件，而是把预处理结果直接打到终端。要输出 `.i`文件（预处理阶段后产生的文件），必须显式写 `gcc -E main.c -o main.i`。这里很多人把“预处理”想象成一个自动落盘的过程，实际上 gcc 中加入`-o `才能把中间产物固化下来。有没有 `-o`文件，决定了你是仍在观察还是在产出可执行文件 。
 
+###汇编阶段
+1.将代码（`.s文件`）翻译成机器语言指令，将这些指令放入（`.o文件`)。
+2.相较于编译阶段的代码多对一优化，汇编只会一对一的死板翻译。
+3.此时的`.o文件`只是半成品没法直接运行。
+
+###链接阶段
+1.符号解析：去系统库里找需要调用的函数。
+2.重定位：对于每个.o文件进行座位分配，使最终文件能够正常运行。
+3.链接有静态链接和动态链接。
+（1）静态链接：将代码复制，优点：不需要考虑电脑是否具有对应的库，哪里都能运行。缺点：但文件数据庞大，占用内存多。
+（2）动态链接：不拷贝代码，记录运行需要的库。优点：数据小，执行快。缺点：只记录了程序要用的库，如果未安装则直接报错，移植性差。
+
+##二.https://www.runoob.com/cmake/cmake-basic.html
+###1.开篇点出Cmake的本质是构建系统生成器 。
+###2.文章里提到了最基本的三个指令：
+
+cmake_minimum_required：必须放第一行，声明最低版本。
+project(MyProject)：定义项目名，顺便把项目名塞进全局变量。
+add_executable(main main.c)：告诉 CMake，我要把 main.c 变成一个叫 main 的可执行文件。这本质上就是把命令行里的 gcc main.c -o main 给“声明化”了。
+
+###3.作用域与依赖传递（PUBLIC / PRIVATE / INTERFACE）
+
+**文章对比了两种写法**：
+老写法：include_directories(...) —— 这是全局的。只要写了，所有子目录、所有目标都能看到。很容易造成“头文件互相污染”。
+新写法：target_include_directories(...) —— 只作用于特定目标。更关键的是它带了三个修饰词：
+**假设我开了公司售卖产品：
+PRIVATE（私有）：这头文件是我自己用的，谁依赖我，我都不给他看。即特殊的工具生产我的产品。
+PUBLIC（公开）：我自己要用，依赖我的人，我也允许他们用。即使用产品配套设备。   
+INTERFACE（接口）：我自己不用，但谁依赖我，我就把这路径传给他（典型场景：纯头文件库）。（**询问ai得知，可以将其理解为我自己不用它，但是买我的产品的人必须用**）
+  
+###4.缓存变量机制
+文章提到了普通变量和缓存变量（CACHE）。
+普通变量每次运行 cmake 都会重新算；但缓存变量会被写进 CMakeCache.txt，跨运行持久化（把数据写入硬盘，跨越程序运行的生命周期）。
+这就是为什么很多人在 GitHub 上抄了别人的项目，改了 CMakeLists.txt 里的默认配置，结果死活不生效。因为之前跑过一次，缓存文件里已经存了旧值。遇到这种问题，删掉 build 目录。
+
+###5.依赖
+通过调用find_package找寻对应脚本，然后将库的头文件路径和库文件路径赋给一群变量。
+
+示例（来源于菜鸟教程）
+```
+# 文件路径：项目根目录/CMakeLists.txt
+
+# 1. 指定 CMake 最低版本（必须放在最前面）
+cmake_minimum_required(VERSION 3.10)
+
+# 2. 定义项目名称、版本和语言
+project(MyProject VERSION 1.0.0 LANGUAGES CXX)
+
+# 3. 设置 C++ 标准为 C++17，并强制要求使用该标准
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# 4. 添加静态库目标
+add_library(MyLib STATIC
+    src/lib/core.cpp      # 核心功能实现
+    src/lib/helper.cpp    # 辅助函数实现
+)
+
+# 5. 添加可执行文件目标
+add_executable(MyApp
+    src/main.cpp           # 程序入口
+    src/utils.cpp          # 工具函数
+)
+
+# 6. 为库目标指定公开头文件路径
+#    PUBLIC 表示使用 MyLib 的目标也能访问该路径
+target_include_directories(MyLib PUBLIC ${PROJECT_SOURCE_DIR}/include)
+
+# 7. 为可执行文件指定私有头文件路径
+target_include_directories(MyApp PRIVATE ${PROJECT_SOURCE_DIR}/src)
+
+# 8. 将 MyLib 链接到 MyApp
+target_link_libraries(MyApp PRIVATE MyLib)
+
+# 9. 设置安装规则
+install(TARGETS MyApp RUNTIME DESTINATION bin)
+install(TARGETS MyLib ARCHIVE DESTINATION lib)
+```
+
+##三.https://www.mihaileric.com/The-Emperor-Has-No-Clothes/
+该篇文章未完全理解，等完全理解后进行补充。
+
+##四.https://wiki.ros.org/catkin/Tutorials
+
+
+
+
+
+
+## 附录：我在实操与大模型交互中的“真实提问记录”
+
+
+**感悟**：AI 可以在一秒钟内给我正确的代码和原理，但它不能代替我手敲终端。正是这些少空格、大小写错误、引号不闭合的“坑”，才让我真正记住了 Linux 的命令行规则。记录下这些真实的踩坑过程，远远比直接复制一段完美的代码更有价值。
+
+在完成这两次作业的过程中，我遇到了非常多的疑惑和报错。我没有直接让 AI 替我写作业，而是把 AI 当作“导师”，遇到不懂的概念和终端报错就去提问。以下是我与 AI 交互的真实思考脉络：
+
+### 一、 基础语法与工具的启蒙
+1. **关于脚本头**：我问 AI `#!/bin/bash` 是什么意思？AI 告诉我这叫做 Shebang，是告诉系统用哪个解释器来运行脚本，这是写 Shell 脚本的“身份证”。
+2. **文本处理**：不懂 `wc` 和 `tail` 怎么用。AI 解释后我明白了，`wc -w` 可以统计字数，而 `tail -n 10` 可以读取历史记录的最后10行，完美解决了作业输出“最近10条命令”的需求。
+3. **编辑器的区别**：我问 AI，刚才打开的 `nano` 和课上讲的 `vim` 是一样的吗？它们都是终端里的文本编辑器，但 `vim` 有普通、插入、底行三种模式，操作更硬核也更高效。
+
+### 二、 构建工具（Makefile & CMake）的底层逻辑
+1. **为什么需要 CMake**：一开始我完全不懂 `cmake` 是什么。通过 AI 的“盖房子”比喻，我理解了 `g++` 是泥瓦匠，`Makefile` 是施工图纸，而 `CMake` 是自动画图纸的设计师。这就解释了为什么我们要用 CMake 来管理大项目。
+2. **编译的细节**：
+   - 我问了 `g++` 的常见编译例子，特别是在链接外部库时，`-l`（指定库名）和 `-L`（指定库路径）的具体用法。
+   - 搞懂了 `g++ -c` 参数的意思是“只编译不链接”，它是实现 Makefile 增量编译的核心。
+3. **Makefile 工作原理**：
+   - 我很好奇 Makefile 的“图纸”到底怎么工作？原来它是通过比对**源文件和目标文件的“时间戳”**，来实现聪明的增量编译（只编译改过的文件）。
+   - 询问 `%.o: %.cpp` 这种模式规则，它是自动处理大量源文件的流水线模板。（详情请看上文）
+
+### 三、 真实的终端“翻车”与 Git 避坑实录
+在实操中，我遇到了很多报错，都是 AI 帮我分析和排查的（这也是我收获最大的地方）：
+1. **脚本没有显示时间**：排查后发现是 Linux 严格区分大小写，我把重定向写成了全大写的 `OUTPUT_FILE`，导致内容写错文件了。
+2. **nano 编辑器的卡死**：在合并代码时弹出了 `.git/MERGE_MSG` 界面，我不知道怎么退出。AI 提醒我按 `Ctrl+O` 保存，回车确认，然后按 `Ctrl+X` 退出。
+3. **Git 同步与冲突**：当团队更新了 GitHub 的 `TASK.md` 时，我学会了用 `git fetch upstream` 拉取，用 `git merge upstream/master` 合并。并且学会用 `git stash` 暂存我还没写完的笔记，合并完再用 `git stash pop` 拿出来。
+4. **低级失误手滑**：
+   - 把 `git add .` 敲成了 `git add.`（少了个空格），终端直接报错。
+   - 因为少敲了一个双引号，终端一直卡在 `>` 提示符出不来，最后按了 `Ctrl+C` 强行中断。
+
+**注意**：该附录使用ai帮我梳理行文思路，使逻辑更加清晰，用词更简洁。
+
